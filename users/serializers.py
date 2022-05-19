@@ -1,8 +1,9 @@
+import email
 from django.contrib.auth.models import User
 from rest_framework import serializers, validators
 
 
-class BaseInfoSerializer(serializers.ModelSerializer):
+class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("username", "password", "email", "first_name", "last_name")
@@ -15,7 +16,7 @@ class BaseInfoSerializer(serializers.ModelSerializer):
                 "allow_blank": False,
                 "validators": [
                     validators.UniqueValidator(
-                        User.objects.all(), f"Username already exists."
+                        User.objects.all(), "Username already exists."
                     )
                 ],
             },
@@ -24,30 +25,39 @@ class BaseInfoSerializer(serializers.ModelSerializer):
                 "allow_blank": False,
                 "validators": [
                     validators.UniqueValidator(
-                        User.objects.all(), f"A user with that Email already exists."
+                        User.objects.all(), "A user with that Email already exists."
                     )
                 ],
             },
         }
 
-class RegisterSerializer(BaseInfoSerializer):
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data["username"],
-            email=validated_data["email"],
-            password=validated_data["password"],
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"]
-        )
-        return user
 
-class UpdateSerializer(BaseInfoSerializer):
-    def create(self, validated_data):
-        user = User.objects.get(
-            username=validated_data["username"],
-            email=validated_data["email"],
-            password=validated_data["password"],
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"]
-        )
-        return user
+class UpdateUserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "first_name", "last_name")
+        extra_kwargs = {
+            "username" : {"required": False},
+            "email" : {"required": False},
+            "first_name": {"required": False},
+            "last_name": {"required": False},
+        }
+
+    def update(self, instance, validated_data):
+        if(validated_data.get('first_name')):
+            instance.first_name = validated_data.get('first_name')
+        else: return 0
+        if(validated_data.get('last_name')):
+            instance.last_name = validated_data.get('last_name')
+        else: return 0
+
+        if(validated_data.get('email')):
+            if User.objects.exclude(username=instance.username).filter(email=validated_data.get('email')).exists():
+                return 1
+            instance.email = validated_data.get('email')
+        #instance.username = validated_data['username']
+
+        instance.save()
+
+        return instance
